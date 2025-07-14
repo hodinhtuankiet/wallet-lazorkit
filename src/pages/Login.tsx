@@ -1,27 +1,48 @@
 import { useState } from 'react';
 import { Fingerprint, Shield, Sparkles, Lock, Zap, Check, X } from 'lucide-react';
-
-const Login = ({ onLogin = () => {} }) => {
+import { useWallet } from '@lazorkit/wallet'
+interface LoginProps {
+  onLogin: (walletData?: { smartWalletAddress: string; account: any }) => void;
+}
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authStep, setAuthStep] = useState(0);
 
-  const fakeLogin = () => {
+  const { createPasskeyOnly, createSmartWalletOnly } = useWallet();
+
+  const fakeLogin = async () => {
     setIsDialogOpen(true);
     setIsAuthenticating(true);
     setAuthStep(0);
-    
-    // Simulate authentication steps
-    setTimeout(() => setAuthStep(1), 600);
-    setTimeout(() => setAuthStep(2), 1200);
-    setTimeout(() => {
-      setIsAuthenticating(false);
-      setAuthStep(3);
+
+    try {
+      // Step 1: Create passkey only
+      setTimeout(() => setAuthStep(1), 600);
+      const passkeyResponse = await createPasskeyOnly();
+      console.log('Passkey created:', passkeyResponse);
+
+      // Step 2: Create smart wallet using passkey data
+      setTimeout(() => setAuthStep(2), 1200);
+      const smartWalletResult = await createSmartWalletOnly(passkeyResponse);
+      console.log('Smart wallet result:', smartWalletResult);
+
+      // Step 3: Success
       setTimeout(() => {
-        setIsDialogOpen(false);
-        onLogin();
-      }, 800);
-    }, 1800);
+        setIsAuthenticating(false);
+        setAuthStep(3);
+        setTimeout(() => {
+          setIsDialogOpen(false);
+          // Pass the wallet data to parent
+          onLogin(smartWalletResult);
+        }, 800);
+      }, 1800);
+
+    } catch (error) {
+      console.error('Login failed:', error);
+      setIsAuthenticating(false);
+      setIsDialogOpen(false);
+    }
   };
 
   const getAuthMessage = () => {
@@ -127,7 +148,7 @@ const Login = ({ onLogin = () => {} }) => {
                   </div>
                 </button>
               </div>
-              
+
               <div className="text-center space-y-3">
                 <p className="text-sm text-slate-400">
                   Use your device's biometric authentication or PIN
@@ -164,7 +185,7 @@ const Login = ({ onLogin = () => {} }) => {
           <div className="relative w-full max-w-md">
             <div className="backdrop-blur-xl bg-slate-900/90 border border-slate-600/50 rounded-3xl p-8 shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/10 rounded-3xl" />
-              
+
               {/* Close button */}
               <button
                 onClick={() => setIsDialogOpen(false)}
@@ -188,7 +209,7 @@ const Login = ({ onLogin = () => {} }) => {
                     Please authenticate using your device's security method
                   </p>
                 </div>
-                
+
                 <div className="flex flex-col items-center space-y-6">
                   {isAuthenticating ? (
                     <>
@@ -202,27 +223,25 @@ const Login = ({ onLogin = () => {} }) => {
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-cyan-500/20 rounded-full blur-2xl animate-pulse" />
                       </div>
-                      
+
                       {/* Enhanced progress steps */}
                       <div className="flex items-center space-x-3">
                         {[0, 1, 2].map((step) => (
                           <div key={step} className="flex items-center">
                             <div
-                              className={`w-3 h-3 rounded-full transition-all duration-500 ${
-                                step <= authStep
-                                  ? 'bg-blue-400 scale-110 shadow-lg shadow-blue-400/50'
-                                  : 'bg-slate-600 scale-90'
-                              }`}
+                              className={`w-3 h-3 rounded-full transition-all duration-500 ${step <= authStep
+                                ? 'bg-blue-400 scale-110 shadow-lg shadow-blue-400/50'
+                                : 'bg-slate-600 scale-90'
+                                }`}
                             />
                             {step < 2 && (
-                              <div className={`w-8 h-0.5 mx-1 transition-all duration-500 ${
-                                step < authStep ? 'bg-blue-400' : 'bg-slate-600'
-                              }`} />
+                              <div className={`w-8 h-0.5 mx-1 transition-all duration-500 ${step < authStep ? 'bg-blue-400' : 'bg-slate-600'
+                                }`} />
                             )}
                           </div>
                         ))}
                       </div>
-                      
+
                       <div className="text-center space-y-3">
                         <p className="text-sm font-medium text-slate-200">
                           {getAuthMessage()}
@@ -243,7 +262,7 @@ const Login = ({ onLogin = () => {} }) => {
                         </div>
                         <div className="absolute inset-0 bg-green-500/20 rounded-full blur-2xl animate-pulse" />
                       </div>
-                      
+
                       <div className="text-center space-y-2">
                         <p className="text-sm font-medium text-green-400">
                           Authentication successful!
